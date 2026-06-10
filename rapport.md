@@ -57,7 +57,19 @@ Après l’implémentation du cache Redis optimisé, les performances des endpoi
 Par contre, l’endpoint POST /orders ne s’améliore pas. Il échoue encore 100% du temps, avec 736 échecs sur 736 requêtes et un temps moyen d’environ 10062 ms. Cela montre que l’optimisation du cache améliore surtout la lecture des rapports, mais ne règle pas les problèmes d’écriture liés à MySQL.
 
 ---------------------------------------
+**Question 8 : Sur l'onglet Statistics, comparez les résultats actuels avec les résultats du test de charge précédent. Est-ce que vous voyez quelques différences significatives dans les métriques pour les endpoints POST /orders, GET /orders/reports/highest-spenders et GET /orders/reports/best-sellers ? Dans quelle mesure la performance s'est-elle améliorée ou détériorée (par exemple, en pourcentage) ? La réponse dépendra de votre environnement d'exécution (par exemple, vous obtiendrez de meilleures performances en exécutant 2 instances de Store Manager sur 2 machines virtuelles plutôt que sur une seule).**
 
+![alt text](images/image-q8.png)
+<p align="center">8.1 Capture d'écran des statistiques</p>
+
+---------------------------------------
+**Question 9 : Dans le fichier nginx.conf, il existe un attribut qui configure l'équilibrage de charge. Quelle politique d'équilibrage de charge utilisons-nous actuellement ? Consultez la documentation officielle de Nginx si vous avez des questions.**
+
+La politique d’équilibrage de charge utilisée est least_conn, c’est-à-dire la stratégie des moindres connexions. Avec cette stratégie, Nginx envoie les nouvelles requêtes vers l’instance backend qui a le moins de connexions actives au moment de la requête.
 
 ## CI/CD
 
+Intégration continue avec les tests: 
+![alt text](images/image-ci.png)
+
+Déploiement continue sur la VM:
