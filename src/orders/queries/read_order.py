@@ -1,18 +1,25 @@
 """
-Orders (read-only model)
+Orders (read-only model) [OPTIMIZED]
 SPDX - License - Identifier: LGPL - 3.0 - or -later
 Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 """
 import json
-import time
 from db import get_redis_conn, get_sqlalchemy_session
 from collections import defaultdict
-from logger import Logger
 from orders.models.order import Order
 from orders.models.order_item import OrderItem
 from sqlalchemy.sql import func
+from logger import Logger
 
-logger = Logger.get_instance("order_reports")
+logger = Logger.get_instance("read_order")
+
+def decode_redis_hash(redis_hash):
+    decoded = {}
+    for key, value in redis_hash.items():
+        decoded_key = key.decode("utf-8") if isinstance(key, bytes) else key
+        decoded_value = value.decode("utf-8") if isinstance(value, bytes) else value
+        decoded[decoded_key] = decoded_value
+    return decoded
 
 def get_order_by_id(order_id):
     """Get order by ID from Redis"""
@@ -75,19 +82,23 @@ def get_best_selling_products_mysql():
     finally:
         session.close()
 
-def get_highest_spending_users_redis():
+def get_highest_spending_users_redis(skip_cache=False):
     """Get report of highest spending users from Redis"""
     result = []
+    r = get_redis_conn()
+    cached = r.get("report:highest_spenders")
+    logger.debug(f"Dans le cache: {cached}")
+    if cached and not skip_cache:
+        return json.loads(cached)
+
     try: 
-        start_time = time.time()
-        # TODO: optimiser
-        r = get_redis_conn()
+        logger.debug("Créer le rapport highest_spenders")
         limit = 10
         order_keys = r.keys("order:*")
         spending = defaultdict(float)
         
         for key in order_keys:
-            order_data = r.hgetall(key)
+            order_data = decode_redis_hash(r.hgetall(key))
             if "user_id" in order_data and "total_amount" in order_data:
                 user_id = int(order_data["user_id"])
                 total = float(order_data["total_amount"])
@@ -100,27 +111,31 @@ def get_highest_spending_users_redis():
                 "user_id": user[0],
                 "total_expense": round(user[1], 2)
             })
+        logger.debug(f"Résultat JSON: {result}")
+        r.set('report:highest_spenders', json.dumps(result))
 
     except Exception as e:
         return {'error': str(e)}
+    finally:
+        return result
 
-    end_time = time.time()
-    logger.debug(f"Executed in {end_time - start_time} seconds")
-    return result
-
-def get_best_selling_products_redis():
+def get_best_selling_products_redis(skip_cache=False):
     """Get report of best selling products by quantity sold from Redis"""
     result = []
+    r = get_redis_conn()
+    cached = r.get("report:best_sellers")
+    logger.debug(f"Dans le cache: {cached}")
+    if cached and not skip_cache:
+        return json.loads(cached)
+    
     try:
-        start_time = time.time()
-        # TODO: optimiser
-        r = get_redis_conn()
+        logger.debug("Créer le rapport best_sellers")
         limit = 10
         order_keys = r.keys("order:*")
         product_sales = defaultdict(int)
         
         for order_key in order_keys:
-            order_data = r.hgetall(order_key)
+            order_data = decode_redis_hash(r.hgetall(order_key))
             if "items" in order_data:
                 try:
                     products = json.loads(order_data["items"])
@@ -139,20 +154,18 @@ def get_best_selling_products_redis():
                 "product_id": product[0],
                 "quantity_sold": product[1]
             })
+        logger.debug(f"Résultat JSON: {result}")
+        r.set('report:best_sellers', json.dumps(result))
 
     except Exception as e:
         return {'error': str(e)}
-    
-    end_time = time.time()
-    logger.debug(f"Executed in {end_time - start_time} seconds")
-    return result
+    finally:
+        return result
 
-def get_highest_spending_users():
+def get_highest_spending_users(skip_cache=False):
     """Get report of highest spending users"""
-    # return get_highest_spending_users_redis()
-    return get_highest_spending_users_mysql()
+    return get_highest_spending_users_redis(skip_cache)
 
-def get_best_selling_products():
+def get_best_selling_products(skip_cache=False):
     """Get report of best selling products"""
-    # return get_best_selling_products_redis()
-    return get_best_selling_products_mysql()
+    return get_best_selling_products_redis(skip_cache)

@@ -4,6 +4,7 @@ SPDX - License - Identifier: LGPL - 3.0 - or -later
 Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 """
 import threading
+import threading
 from graphene import Schema
 from stocks.schemas.query import Query
 from flask import Flask, request, jsonify
@@ -12,8 +13,18 @@ from orders.controllers.order_controller import create_order, remove_order, get_
 from orders.controllers.user_controller import create_user, remove_user, get_user
 from stocks.controllers.product_controller import create_product, remove_product, get_product
 from stocks.controllers.stock_controller import get_stock, set_stock, get_stock_overview
- 
+
 app = Flask(__name__)
+
+# Auto-generate Redis reports 2 seconds after startup (to give enough time for the DB to start up as well). Once done for the first time, repeat it recursively every 60s to refresh the cache.
+def generate_reports_and_cache():
+    threading.Timer(2.0, get_report_highest_spending_users, args=(True,)).start()
+    threading.Timer(2.0, get_report_best_selling_products, args=(True,)).start()
+    threading.Timer(60.0, generate_reports_and_cache).start()
+
+# Start the first execution
+generate_reports_and_cache()
+
 counter_orders = Counter('orders', 'Total calls to /orders')
 counter_highest_spenders = Counter('highest_spenders', 'Total calls to /orders/reports/highest-spenders')
 counter_best_sellers = Counter('best_sellers', 'Total calls to /orders/reports/best-sellers')

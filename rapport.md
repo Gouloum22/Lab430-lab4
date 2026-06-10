@@ -35,10 +35,26 @@ Après l’optimisation du problème N+1, je ne constate pas d’amélioration s
 <p align="center">4.1 Capture d'écran des statistiques</p>
 
 ---------------------------------------
-
 **Question 5 : Si nous avions plus d'articles dans notre base de données (par exemple, 1 million), ou simplement plus d'articles par commande en moyenne, le temps de réponse de l'endpoint POST /orders augmenterait-il, diminuerait-il ou resterait-il identique ?**
 
 Si la base de données contenait plus d’articles, par exemple 1 million, le temps de réponse ne devrait pas nécessairement augmenter beaucoup pour chercher les produits par id, car cette recherche est généralement indexée. Par contre, si chaque commande contenait plus d’articles en moyenne, le temps de réponse de POST /orders augmenterait, car l’application devrait traiter plus d’items, calculer plus de prix, insérer plus de lignes OrderItem et mettre à jour plus de stocks. L’optimisation N+1 réduit le nombre de requêtes SQL de lecture, mais elle ne règle pas le coût des écritures et des mises à jour concurrentes.
+
+---------------------------------------
+**Question 6 : Sur l'onglet Statistics, comparez les résultats actuels avec les résultats du test de charge précédent. Est-ce que vous voyez quelques différences significatives dans les métriques pour les endpoints POST /orders, GET /orders/reports/highest-spenders et GET /orders/reports/best-sellers ? Dans quelle mesure la performance s'est-elle améliorée ou détériorée (par exemple, en pourcentage) ?**
+
+Après l’implémentation du cache Redis optimisé, les performances des endpoints de lecture se sont fortement améliorées. Dans le test précédent avec Redis naïf, les endpoints GET /orders/reports/best-sellers et GET /orders/reports/highest-spenders échouaient 100% du temps avec des erreurs 500. Après l’optimisation, best-sellers a seulement 2 échecs sur 690 requêtes, soit environ 0,29%, et highest-spenders a 4 échecs sur 727 requêtes, soit environ 0,55%. Les deux endpoints de rapports deviennent donc presque entièrement disponibles sous charge.
+
+Par contre, l’endpoint POST /orders ne s’améliore pas. Il échoue encore 100% du temps, avec 736 échecs sur 736 requêtes et un temps moyen d’environ 10062 ms. Cela montre que l’optimisation du cache améliore surtout la lecture des rapports, mais ne règle pas les problèmes d’écriture liés à MySQL.
+
+![alt text](images/image-q6.png)
+<p align="center">6.1 Capture d'écran des statistiques</p>
+
+---------------------------------------
+**Question 7 : La génération de rapports repose désormais entièrement sur des requêtes adressées à Redis, ce qui réduit la charge pesant sur MySQL. Cependant, le point de terminaison POST /orders reste à la traîne par rapport aux autres en termes de performances dans notre scénario de test. Alors, qu'est-ce qui limite les performances de l'endpoint POST /orders ?**
+
+Après l’implémentation du cache Redis optimisé, les performances des endpoints de lecture se sont fortement améliorées. Dans le test précédent avec Redis naïf, les endpoints GET /orders/reports/best-sellers et GET /orders/reports/highest-spenders échouaient 100% du temps avec des erreurs 500. Après l’optimisation, best-sellers a seulement 2 échecs sur 690 requêtes, soit environ 0,29%, et highest-spenders a 4 échecs sur 727 requêtes, soit environ 0,55%. Les deux endpoints de rapports deviennent donc presque entièrement disponibles sous charge.
+
+Par contre, l’endpoint POST /orders ne s’améliore pas. Il échoue encore 100% du temps, avec 736 échecs sur 736 requêtes et un temps moyen d’environ 10062 ms. Cela montre que l’optimisation du cache améliore surtout la lecture des rapports, mais ne règle pas les problèmes d’écriture liés à MySQL.
 
 ---------------------------------------
 
